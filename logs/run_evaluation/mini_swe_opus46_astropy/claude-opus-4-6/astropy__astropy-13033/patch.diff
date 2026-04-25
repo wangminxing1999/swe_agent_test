@@ -1,0 +1,62 @@
+diff --git a/astropy/timeseries/core.py b/astropy/timeseries/core.py
+index c279f35f8..0795d35b5 100644
+--- a/astropy/timeseries/core.py
++++ b/astropy/timeseries/core.py
+@@ -72,13 +72,16 @@ class BaseTimeSeries(QTable):
+ 
+                 raise ValueError("{} object is invalid - expected '{}' "
+                                  "as the first column{} but time series has no columns"
+-                                 .format(self.__class__.__name__, required_columns[0], plural))
++                                 .format(self.__class__.__name__,
++                                         "', '".join(required_columns), plural))
+ 
+             elif self.colnames[:len(required_columns)] != required_columns:
+ 
+                 raise ValueError("{} object is invalid - expected '{}' "
+                                  "as the first column{} but found '{}'"
+-                                 .format(self.__class__.__name__, required_columns[0], plural, self.colnames[0]))
++                                 .format(self.__class__.__name__,
++                                         "', '".join(required_columns), plural,
++                                         "', '".join(self.colnames[:len(required_columns)])))
+ 
+             if (self._required_columns_relax
+                     and self._required_columns == self.colnames[:len(self._required_columns)]):
+diff --git a/edit_tool.py b/edit_tool.py
+new file mode 100644
+index 000000000..68108a1c5
+--- /dev/null
++++ b/edit_tool.py
+@@ -0,0 +1,33 @@
++import sys
++
++def edit_file(filename, old_text, new_text):
++    with open(filename, 'r') as f:
++        content = f.read()
++    
++    if old_text not in content:
++        print(f"ERROR: Could not find the old text in {filename}")
++        print(f"Old text:\n{old_text}")
++        sys.exit(1)
++    
++    count = content.count(old_text)
++    if count > 1:
++        print(f"WARNING: Found {count} occurrences of old text, replacing all")
++    
++    content = content.replace(old_text, new_text)
++    
++    with open(filename, 'w') as f:
++        f.write(content)
++    
++    print(f"Successfully edited {filename}")
++
++if __name__ == '__main__':
++    if len(sys.argv) != 4:
++        print("Usage: python edit_tool.py <filename> <old_text_file> <new_text_file>")
++        sys.exit(1)
++    
++    with open(sys.argv[2]) as f:
++        old_text = f.read()
++    with open(sys.argv[3]) as f:
++        new_text = f.read()
++    
++    edit_file(sys.argv[1], old_text, new_text)

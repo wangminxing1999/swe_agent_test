@@ -1,0 +1,63 @@
+diff --git a/astropy/io/fits/card.py b/astropy/io/fits/card.py
+index 1b3285ddc..bd48eba60 100644
+--- a/astropy/io/fits/card.py
++++ b/astropy/io/fits/card.py
+@@ -859,7 +859,7 @@ class Card(_Verify):
+                     return kw, vc
+ 
+                 value = m.group("strg") or ""
+-                value = value.rstrip().replace("''", "'")
++                value = value.rstrip()
+                 if value and value[-1] == "&":
+                     value = value[:-1]
+                 values.append(value)
+diff --git a/edit_tool.py b/edit_tool.py
+new file mode 100755
+index 000000000..ff67653d4
+--- /dev/null
++++ b/edit_tool.py
+@@ -0,0 +1,44 @@
++#!/usr/bin/env python3
++"""Simple file editing tool."""
++import sys
++import argparse
++
++def main():
++    parser = argparse.ArgumentParser(description='Edit a file')
++    parser.add_argument('file', help='File to edit')
++    parser.add_argument('--start', type=int, required=True, help='Start line (1-indexed)')
++    parser.add_argument('--end', type=int, required=True, help='End line (1-indexed, inclusive)')
++    parser.add_argument('--content', type=str, default=None, help='Replacement content (reads from stdin if not provided)')
++    parser.add_argument('--view', action='store_true', help='Just view the lines')
++    
++    args = parser.parse_args()
++    
++    with open(args.file, 'r') as f:
++        lines = f.readlines()
++    
++    if args.view:
++        for i in range(args.start - 1, min(args.end, len(lines))):
++            print(f"{i+1:6d} | {lines[i]}", end='')
++        return
++    
++    # Read replacement content from stdin if not provided
++    if args.content is None:
++        content = sys.stdin.read()
++    else:
++        content = args.content
++    
++    new_lines = content.split('\n')
++    if content.endswith('\n'):
++        new_lines = new_lines[:-1]  # Remove trailing empty string from split
++    new_lines = [line + '\n' for line in new_lines]
++    
++    # Replace lines
++    result = lines[:args.start - 1] + new_lines + lines[args.end:]
++    
++    with open(args.file, 'w') as f:
++        f.writelines(result)
++    
++    print(f"Replaced lines {args.start}-{args.end} with {len(new_lines)} lines in {args.file}")
++
++if __name__ == '__main__':
++    main()

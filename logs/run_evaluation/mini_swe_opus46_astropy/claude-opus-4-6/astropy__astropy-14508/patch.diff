@@ -1,0 +1,71 @@
+diff --git a/astropy/io/fits/card.py b/astropy/io/fits/card.py
+index 118bfced8..782b8a831 100644
+--- a/astropy/io/fits/card.py
++++ b/astropy/io/fits/card.py
+@@ -1299,10 +1299,23 @@ def _format_value(value):
+ 
+ def _format_float(value):
+     """Format a floating number to make sure it gets the decimal point."""
+-    value_str = f"{value:.16G}"
++    # First try Python's default string representation, which uses the
++    # shortest representation that round-trips correctly. This avoids
++    # unnecessarily long representations like 0.009124999999999999 for 0.009125.
++    value_str = str(value)
++    # Ensure uppercase E for FITS compliance
++    if "e" in value_str or "E" in value_str:
++        value_str = value_str.upper()
+     if "." not in value_str and "E" not in value_str:
+         value_str += ".0"
+-    elif "E" in value_str:
++
++    if len(value_str) > 20:
++        # If the default representation is too long, fall back to .16G formatting
++        value_str = f"{value:.16G}"
++        if "." not in value_str and "E" not in value_str:
++            value_str += ".0"
++
++    if "E" in value_str:
+         # On some Windows builds of Python (and possibly other platforms?) the
+         # exponent is zero-padded out to, it seems, three digits.  Normalize
+         # the format to pad only to two digits.
+diff --git a/edit_tool.py b/edit_tool.py
+new file mode 100755
+index 000000000..9fd29caf0
+--- /dev/null
++++ b/edit_tool.py
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python3
++"""Simple file editing tool."""
++import sys
++
++def edit_file(filename, old_text, new_text):
++    with open(filename, 'r') as f:
++        content = f.read()
++    
++    if old_text not in content:
++        print(f"ERROR: Could not find the old text in {filename}")
++        print(f"Old text:\n{old_text}")
++        sys.exit(1)
++    
++    count = content.count(old_text)
++    if count > 1:
++        print(f"WARNING: Found {count} occurrences of old text, replacing all")
++    
++    content = content.replace(old_text, new_text)
++    
++    with open(filename, 'w') as f:
++        f.write(content)
++    
++    print(f"Successfully edited {filename}")
++
++if __name__ == '__main__':
++    if len(sys.argv) != 4:
++        print("Usage: edit_tool.py <filename> <old_text_file> <new_text_file>")
++        sys.exit(1)
++    
++    with open(sys.argv[2]) as f:
++        old_text = f.read()
++    with open(sys.argv[3]) as f:
++        new_text = f.read()
++    
++    edit_file(sys.argv[1], old_text, new_text)

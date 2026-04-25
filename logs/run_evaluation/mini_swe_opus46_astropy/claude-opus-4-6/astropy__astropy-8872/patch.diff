@@ -1,0 +1,65 @@
+diff --git a/astropy/units/quantity.py b/astropy/units/quantity.py
+index ded609cbe..f7fd81756 100644
+--- a/astropy/units/quantity.py
++++ b/astropy/units/quantity.py
+@@ -297,7 +297,8 @@ class Quantity(np.ndarray, metaclass=InheritDocstrings):
+                     return value
+ 
+                 if not (np.can_cast(np.float32, value.dtype) or
+-                        value.dtype.fields):
++                        value.dtype.fields or
++                        value.dtype.kind == 'f'):
+                     dtype = float
+ 
+             return np.array(value, dtype=dtype, copy=copy, order=order,
+@@ -378,7 +379,8 @@ class Quantity(np.ndarray, metaclass=InheritDocstrings):
+ 
+         # by default, cast any integer, boolean, etc., to float
+         if dtype is None and (not (np.can_cast(np.float32, value.dtype)
+-                                   or value.dtype.fields)
++                                   or value.dtype.fields
++                                   or value.dtype.kind == 'f')
+                               or value.dtype.kind == 'O'):
+             value = value.astype(float)
+ 
+diff --git a/edit_file.py b/edit_file.py
+new file mode 100755
+index 000000000..fd13b850a
+--- /dev/null
++++ b/edit_file.py
+@@ -0,0 +1,35 @@
++#!/usr/bin/env python
++"""Simple file editing tool."""
++import sys
++import os
++
++def edit_file(filename, old_text, new_text):
++    with open(filename, 'r') as f:
++        content = f.read()
++    
++    if old_text not in content:
++        print(f"ERROR: Could not find the specified text in {filename}")
++        print(f"Looking for:\n{old_text}")
++        sys.exit(1)
++    
++    count = content.count(old_text)
++    if count > 1:
++        print(f"WARNING: Found {count} occurrences of the text. Replacing all.")
++    
++    new_content = content.replace(old_text, new_text)
++    
++    with open(filename, 'w') as f:
++        f.write(new_content)
++    
++    print(f"Successfully edited {filename} ({count} replacement(s))")
++
++if __name__ == '__main__':
++    if len(sys.argv) != 4:
++        print("Usage: python edit_file.py <filename> <old_text> <new_text>")
++        print("  Use \\n for newlines in text arguments")
++        sys.exit(1)
++    
++    filename = sys.argv[1]
++    old_text = sys.argv[2].replace('\\n', '\n')
++    new_text = sys.argv[3].replace('\\n', '\n')
++    edit_file(filename, old_text, new_text)

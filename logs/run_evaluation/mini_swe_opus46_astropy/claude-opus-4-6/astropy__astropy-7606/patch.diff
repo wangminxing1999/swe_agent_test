@@ -1,0 +1,48 @@
+diff --git a/=1.13.0 b/=1.13.0
+new file mode 100644
+index 000000000..e69de29bb
+diff --git a/astropy/units/core.py b/astropy/units/core.py
+index e9bd986d3..0ee8cf869 100644
+--- a/astropy/units/core.py
++++ b/astropy/units/core.py
+@@ -1710,7 +1710,10 @@ class UnrecognizedUnit(IrreducibleUnit):
+         _unrecognized_operator
+ 
+     def __eq__(self, other):
+-        other = Unit(other, parse_strict='silent')
++        try:
++            other = Unit(other, parse_strict='silent')
++        except (ValueError, UnitsError, TypeError):
++            return False
+         return isinstance(other, UnrecognizedUnit) and self.name == other.name
+ 
+     def __ne__(self, other):
+diff --git a/edit_tool.py b/edit_tool.py
+new file mode 100644
+index 000000000..8d7ee7201
+--- /dev/null
++++ b/edit_tool.py
+@@ -0,0 +1,23 @@
++import sys
++
++def edit_file(filename, old_text, new_text):
++    with open(filename, 'r') as f:
++        content = f.read()
++    
++    if old_text not in content:
++        print(f"ERROR: Could not find the old text in {filename}")
++        sys.exit(1)
++    
++    count = content.count(old_text)
++    if count > 1:
++        print(f"WARNING: Found {count} occurrences of old text, replacing all")
++    
++    content = content.replace(old_text, new_text)
++    
++    with open(filename, 'w') as f:
++        f.write(content)
++    
++    print(f"Successfully edited {filename}")
++
++if __name__ == '__main__':
++    edit_file(sys.argv[1], sys.argv[2], sys.argv[3])

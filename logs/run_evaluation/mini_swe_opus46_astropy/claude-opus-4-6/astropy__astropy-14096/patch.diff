@@ -1,0 +1,70 @@
+diff --git a/astropy/coordinates/sky_coordinate.py b/astropy/coordinates/sky_coordinate.py
+index ab475f7d0..ca17e08e6 100644
+--- a/astropy/coordinates/sky_coordinate.py
++++ b/astropy/coordinates/sky_coordinate.py
+@@ -871,6 +871,22 @@ class SkyCoord(ShapedLikeNDArray):
+         Overrides getattr to return coordinates that this can be transformed
+         to, based on the alias attr in the primary transform graph.
+         """
++        # For attribute access on instances, if the attribute is a descriptor
++        # (e.g., a property) defined on the class, Python will have already
++        # tried calling it before reaching __getattr__. If we're here, it
++        # means the descriptor raised an AttributeError. In that case, we
++        # should propagate the original error rather than masking it with a
++        # misleading "'SkyCoord' object has no attribute 'attr'" message.
++        for base in type(self).__mro__:
++            if attr in base.__dict__:
++                desc = base.__dict__[attr]
++                if hasattr(desc, '__get__'):
++                    try:
++                        return desc.__get__(self, type(self))
++                    except AttributeError:
++                        raise
++                break
++
+         if "_sky_coord_frame" in self.__dict__:
+             if self._is_name(attr):
+                 return self  # Should this be a deepcopy of self?
+diff --git a/edit_tool.py b/edit_tool.py
+new file mode 100755
+index 000000000..c46582ac6
+--- /dev/null
++++ b/edit_tool.py
+@@ -0,0 +1,37 @@
++#!/usr/bin/env python3
++"""Simple file editing tool."""
++import sys
++
++def replace_in_file(filepath, old_text, new_text):
++    with open(filepath, 'r') as f:
++        content = f.read()
++    
++    if old_text not in content:
++        print(f"ERROR: Could not find the text to replace in {filepath}")
++        print(f"Looking for:\n{old_text}")
++        sys.exit(1)
++    
++    count = content.count(old_text)
++    if count > 1:
++        print(f"WARNING: Found {count} occurrences of the text. Replacing all.")
++    
++    content = content.replace(old_text, new_text)
++    
++    with open(filepath, 'w') as f:
++        f.write(content)
++    
++    print(f"Successfully replaced text in {filepath}")
++
++if __name__ == '__main__':
++    if len(sys.argv) != 4:
++        print("Usage: python edit_tool.py <filepath> <old_text_file> <new_text_file>")
++        print("  Or use it as a module")
++        sys.exit(1)
++    
++    filepath = sys.argv[1]
++    with open(sys.argv[2]) as f:
++        old_text = f.read()
++    with open(sys.argv[3]) as f:
++        new_text = f.read()
++    
++    replace_in_file(filepath, old_text, new_text)
