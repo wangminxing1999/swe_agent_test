@@ -150,7 +150,8 @@ agent:
 
     ## Regression Testing Before Submission
 
-    Before issuing the submission command, you MUST verify that your changes do not break existing tests.
+    Before issuing the submission command, you MUST verify your changes do not introduce
+    new test failures. Use the following diff-based approach (two test runs total):
 
     ### 1. Identify relevant test files
     Look at which source files you modified (e.g. via `git diff --name-only`), then locate
@@ -159,24 +160,30 @@ agent:
     - `astropy/table/column.py`  ->  `astropy/table/tests/`
     Use `find /testbed -type d -name tests` to explore available test directories.
 
-    ### 2. Run the relevant tests
-    Keep the scope focused -- do not run the entire test suite; only the modules you touched.
-    Example:
+    ### 2. Run tests WITH your changes and record failing test IDs
     ```mswea_bash_command
-    cd /testbed && python -m pytest <relevant_test_path> --timeout=60 -q 2>&1 | tail -60
+    cd /testbed && python -m pytest <relevant_test_path> --timeout=60 -q 2>&1 | grep '^FAILED' | sort > /tmp/failures_after.txt && cat /tmp/failures_after.txt
     ```
 
-    ### 3. Evaluate each failure
-    For every failing test, ask yourself:
-    "Does this test assert behavior that the PR description explicitly requires me to CHANGE?"
-    - YES (conflict with task): the old test is testing the very behavior you are fixing.
-      You may ignore this failure and proceed to submit.
-    - NO (unintended regression): your change broke something unrelated to the task.
-      You MUST revise your fix to make this test pass while still solving the original issue.
+    ### 3. Stash your changes, run the SAME tests, record the baseline failures
+    ```mswea_bash_command
+    cd /testbed && git stash && python -m pytest <relevant_test_path> --timeout=60 -q 2>&1 | grep '^FAILED' | sort > /tmp/failures_before.txt && git stash pop
+    ```
 
-    ### 4. Iterate until clean
-    Repeat steps 2-3 after each code revision until all non-conflicting tests pass.
-    Only then proceed to the submission command below.
+    ### 4. Compare: identify tests that are NEW failures introduced by your change
+    ```mswea_bash_command
+    comm -23 /tmp/failures_after.txt /tmp/failures_before.txt
+    ```
+    - Output is **empty** -> no new failures introduced. You may proceed to submit.
+    - Output lists tests -> these are regressions YOUR change introduced.
+      For each newly failing test, ask: does the PR description explicitly require
+      changing the behavior this test asserts?
+      - YES (direct conflict with task): ignore it and proceed.
+      - NO: you MUST fix your code so this test passes again.
+
+    ### 5. Iterate until the new-failure diff is empty (or only task-conflicting tests remain)
+    After each code revision, repeat steps 2 and 4 (no need to redo step 3 — the baseline
+    does not change). Only then proceed to the submission command below.
 
     ## Submission
     When you have completed your work (reading, editing, testing), and cannot make further progress
