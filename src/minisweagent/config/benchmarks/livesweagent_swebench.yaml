@@ -45,6 +45,8 @@ agent:
     3. Edit the source code to resolve the issue
     4. Verify your fix works by running your script again
     5. Test edge cases to ensure your fix is robust
+    6. Run regression tests on modules related to your changes, and fix any regressions
+       that do not conflict with the task requirements before submitting
 
     ## Command Execution Rules
     You are operating in an environment where
@@ -145,6 +147,36 @@ agent:
     - Ensure each tool you create is in Python, contains informative outputs or error messages, and can be run from the command line
     - You should at least create a simple edit tool that can help you effectively edit arbitrary files instead of using bash commands
     - The tools you create can be for any purpose; think about how they can help you specifically with the current task
+
+    ## Regression Testing Before Submission
+
+    Before issuing the submission command, you MUST verify that your changes do not break existing tests.
+
+    ### 1. Identify relevant test files
+    Look at which source files you modified (e.g. via `git diff --name-only`), then locate
+    the corresponding test directories. Common patterns:
+    - `astropy/io/fits/card.py`  ->  `astropy/io/fits/tests/`
+    - `astropy/table/column.py`  ->  `astropy/table/tests/`
+    Use `find /testbed -type d -name tests` to explore available test directories.
+
+    ### 2. Run the relevant tests
+    Keep the scope focused -- do not run the entire test suite; only the modules you touched.
+    Example:
+    ```mswea_bash_command
+    cd /testbed && python -m pytest <relevant_test_path> --timeout=60 -q 2>&1 | tail -60
+    ```
+
+    ### 3. Evaluate each failure
+    For every failing test, ask yourself:
+    "Does this test assert behavior that the PR description explicitly requires me to CHANGE?"
+    - YES (conflict with task): the old test is testing the very behavior you are fixing.
+      You may ignore this failure and proceed to submit.
+    - NO (unintended regression): your change broke something unrelated to the task.
+      You MUST revise your fix to make this test pass while still solving the original issue.
+
+    ### 4. Iterate until clean
+    Repeat steps 2-3 after each code revision until all non-conflicting tests pass.
+    Only then proceed to the submission command below.
 
     ## Submission
     When you have completed your work (reading, editing, testing), and cannot make further progress
